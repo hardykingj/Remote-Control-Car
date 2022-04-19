@@ -52,7 +52,8 @@ float DistanceCMRight;
 float DistanceCMLeft;
 
 // Accelerometer Variables (using I2C)
-Adafruit_LIS3DH lis = Adafruit_LIS3DH();
+Adafruit_LIS3DH AccFront = Adafruit_LIS3DH();
+Adafruit_LIS3DH AccRear = Adafruit_LIS3DH();
 
 // Timer Varaibles
 unsigned long lastTimeDelay = 0;
@@ -90,6 +91,7 @@ void onDisconnectedGamepad(GamepadPtr gp) {
 // Arduino setup function. Runs in CPU 1
 void setup() {
     setCpuFrequencyMhz(240);                                        // Overclocking the frequency of the ESP32 core
+
 
     // Wifi
     // Connecting to WiFi
@@ -139,32 +141,29 @@ void setup() {
 
 
     // 3-Axis Accelerometer Setup
+    // Front Accelerometer Steup
     while (!Serial) delay(10);                                          // Will pause Zero, Leonardo, etc until serial console opens
     
-    if (! lis.begin(0x18)) {                                            // Change this to 0x19 for alternative I2C address
+    if (! AccFront.begin(0x18)) {                                       // Looks at particular I2C address
         Serial.println("Couldnt start");
         while (1) yield();
     }
-    Serial.println("LIS3DH found!");
+    Serial.println("LIS3DH front found!");
+        
+    AccFront.setDataRate(LIS3DH_DATARATE_100_HZ);                       // Set's datalog rate to 100Hz
+    AccFront.setRange(LIS3DH_RANGE_4_G);                                // Set's acceleration range to 4G
+
+    // Rear Accelerometer Steup
+    while (!Serial) delay(10);                                          // Will pause Zero, Leonardo, etc until serial console opens
     
-    Serial.print("Range = "); Serial.print(2 << lis.getRange());
-    Serial.println("G");
-    
-    // lis.setDataRate(LIS3DH_DATARATE_50_HZ);
-    Serial.print("Data rate set to: ");
-    switch (lis.getDataRate()) {
-      case LIS3DH_DATARATE_1_HZ: Serial.println("1 Hz"); break;
-      case LIS3DH_DATARATE_10_HZ: Serial.println("10 Hz"); break;
-      case LIS3DH_DATARATE_25_HZ: Serial.println("25 Hz"); break;
-      case LIS3DH_DATARATE_50_HZ: Serial.println("50 Hz"); break;
-      case LIS3DH_DATARATE_100_HZ: Serial.println("100 Hz"); break;
-      case LIS3DH_DATARATE_200_HZ: Serial.println("200 Hz"); break;
-      case LIS3DH_DATARATE_400_HZ: Serial.println("400 Hz"); break;
-      
-      case LIS3DH_DATARATE_POWERDOWN: Serial.println("Powered Down"); break;
-      case LIS3DH_DATARATE_LOWPOWER_5KHZ: Serial.println("5 Khz Low Power"); break;
-      case LIS3DH_DATARATE_LOWPOWER_1K6HZ: Serial.println("16 Khz Low Power"); break;
+    if (! AccRear.begin(0x19)) {                                        // Looks at particular I2C address
+        Serial.println("Couldnt start");
+        while (1) yield();
     }
+    Serial.println("LIS3DH rear found!");
+    
+    AccRear.setDataRate(LIS3DH_DATARATE_100_HZ);                        // Set's datalog rate to 100Hz
+    AccRear.setRange(LIS3DH_RANGE_4_G);                                 // Set's acceleration range to 4G
 }
 
 // Arduino loop function. Runs in CPU 1
@@ -219,8 +218,10 @@ void loop() {
 
 
                 // 3-Axis Accelerometer (normalised to m/s^2)
-                sensors_event_t Acceleration;                                               // Creates a sensor event called acceleration
-                lis.getEvent(&Acceleration);                                                // Reads for the values from the sensor for the event
+                sensors_event_t FrontAcceleration;                                          // Creates a sensor event called Front Acceleration
+                sensors_event_t RearAcceleration;                                           // Creates a sensor event called Rear Acceleration
+                AccFront.getEvent(&FrontAcceleration);                                      // Reads for the values from the sensor for Front Acceleration
+                AccRear.getEvent(&RearAcceleration);                                        // Reads for the values from the sensors for Rear Acceleration
 
 
                 // Servo Motor Steering
@@ -249,10 +250,11 @@ void loop() {
                 DCMotorSpeed = ((abs(AxisY))/512.0)*255;                                    // Calcualtes the DC Motor Speed for the given controller input
                 analogWrite(DCMotorPWM, (int) DCMotorSpeed);                                // Writes the DC Motor Speed to the DC Motor PWM pin
 
+
                 // Data Logging (Continuous)
                 if ((millis() - lastTimeDelay) > timerDelay){
                     // Order of Variable Prints
-                    // Time, Left Joystick:X-Axis, Left Joystick:Y-Axis, Steering Angle, Forwards(1) or Backwards(0), InputDCMotorPower, Ultrasonic Distance Right (cm), Ultrasonic Distance Left (cm), X-axis Acceleration (m/s^2), Y-axis Acceleration (m/s^2), Z-axis Acceleration (m/s^2)
+                    // Time, Left Joystick:X-Axis, Left Joystick:Y-Axis, Steering Angle, Forwards(1) or Backwards(0), InputDCMotorPower, Ultrasonic Distance Right (cm), Ultrasonic Distance Left (cm), Front X-axis Acceleration (m/s^2), Front Y-axis Acceleration (m/s^2), Front Z-axis Acceleration (m/s^2), Rear X-axis Acceleration (m/s^2), Rear Y-axis Acceleration (m/s^2), Rear Z-axis Acceleration (m/s^2)
 
                     Server.print(AxisX);
                     Server.print(",");
@@ -268,15 +270,20 @@ void loop() {
                     Server.print(",");
                     Server.print(DistanceCMLeft);
                     Server.print(",");
-                    Server.print(Acceleration.acceleration.x);
+                    Server.print(FrontAcceleration.acceleration.x);
                     Server.print(",");
-                    Server.print(Acceleration.acceleration.y);
+                    Server.print(FrontAcceleration.acceleration.y);
                     Server.print(",");
-                    Server.print(Acceleration.acceleration.z);
+                    Server.print(FrontAcceleration.acceleration.z);
+                    Server.print(",");
+                    Server.print(RearAcceleration.acceleration.x);
+                    Server.print(",");
+                    Server.print(RearAcceleration.acceleration.y);
+                    Server.print(",");
+                    Server.print(RearAcceleration.acceleration.z);
                     Server.print("\n");
 
                     lastTimeDelay = millis();
-
                 }
             }
         }

@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "Remote-Control-Trailer",
+			"path": "..\\Remote-Control-Trailer"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"ctime": "cpp",
+			"filesystem": "cpp",
+			"ostream": "cpp"
+		}
+	}
+}
